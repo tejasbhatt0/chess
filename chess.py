@@ -101,6 +101,16 @@ class Pawn(Piece):
                 if 0 <= two_step <= 7 and board_state[two_step][self.col] is None:
                     moves.append((two_step, self.col))
 
+        # Capturing logic
+        if dc in [-1, 1]:
+            target_row = self.row + self.direction
+            target_col = self.col + dc
+
+            if 0 <= target_row <= 7 and 0 <= target_col <= 7:
+                target_piece = board_state[target_row][target_col]
+                if target_piece is not None and target_piece.color != self.color:
+                    moves.append((target_row, target_col))
+
         return moves
 
 
