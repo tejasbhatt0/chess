@@ -90,8 +90,19 @@ class Pawn(Piece):
 
     def get_valid_moves(self, board_state):
         # piece logic
+        moves = []
 
-        pass
+        one_step = self.row + self.direction
+        if 0 <= one_step <= 7 and board_state[one_step][self.col] is None:
+            moves.append((one_step, self.col))
+
+            if self.hasMoved is False:
+                two_step = self.row + 2*self.direction
+                if 0 <= two_step <= 7 and board_state[two_step][self.col] is None:
+                    moves.append((two_step, self.col))
+
+        return moves
+
 
 class Knight(Piece):
     def __init__(self, color, row, col):
@@ -126,7 +137,11 @@ class King(Piece):
 
 loadImages(SQSIZE)
 
+# Stores data on where the pieces are on the board
 board_state = [[None for _ in range(8)] for _ in range(8)]
+
+# Selected piece memory
+selected_piece = None
 
 def setupBoard():
     for i in range(8):
@@ -178,7 +193,6 @@ def setupBoard():
                     board_state[i][j] = King('white', i, j)
 
 setupBoard()
-print(board_state)
 
 running = True
 while running:
@@ -197,9 +211,12 @@ while running:
             clicked_row = int(y_mouse // SQSIZE)
 
             if 0 <= clicked_col <= 7 and 0 <= clicked_row <= 7:
-                clicked_piece = board_state[clicked_row][clicked_col]
+                selected_piece = board_state[clicked_row][clicked_col]
 
-                if clicked_piece is not None:
+                if selected_piece:
+                    print(f"The valid moves are: {selected_piece.get_valid_moves(board_state)}")
+
+                if selected_piece is not None:
                     print('clicked piece')
                 else:
                     print("didn't click piece")
@@ -219,6 +236,12 @@ while running:
             y_pos = row * SQSIZE
 
             pg.draw.rect(screen, color, (x_pos, y_pos, SQSIZE, SQSIZE))
+
+            if selected_piece is not None:
+                x_high = selected_piece.col * SQSIZE + x_offset
+                y_high = selected_piece.row * SQSIZE
+
+                pg.draw.rect(screen, (100, 255, 255), (x_high, y_high, SQSIZE, SQSIZE), 4)
 
             piece = board_state[row][col]
             if piece is not None:
