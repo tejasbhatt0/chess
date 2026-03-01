@@ -102,7 +102,7 @@ class Pawn(Piece):
                     moves.append((two_step, self.col))
 
         # Capturing logic
-        if dc in [-1, 1]:
+        for dc in [-1, 1]:
             target_row = self.row + self.direction
             target_col = self.col + dc
 
@@ -119,6 +119,28 @@ class Knight(Piece):
         super().__init__(color, row, col)
 
         self.image = ICONS[f"{self.color}_knight"]
+
+    def get_valid_moves(self, board_state):
+        moves = []
+        target_sqs = [[self.row + 1, self.col + 2],
+                      [self.row + 1, self.col - 2],
+                      [self.row - 1, self.col + 2],
+                      [self.row - 1, self.col - 2],
+                      [self.row + 2, self.col + 1],
+                      [self.row + 2, self.col - 1],
+                      [self.row - 2, self.col + 1],
+                      [self.row - 2, self.col - 1]]
+        for t in target_sqs:
+            r = t[0]
+            c = t[1]
+
+            if 0 <= r <= 7 and 0 <= c <= 7:
+                target_sq = board_state[r][c]
+                if target_sq is None or target_sq.color != self.color:
+                    moves.append((r, c))
+
+        return moves
+
 
 class Bishop(Piece):
     def __init__(self, color, row, col):
@@ -221,15 +243,22 @@ while running:
             clicked_row = int(y_mouse // SQSIZE)
 
             if 0 <= clicked_col <= 7 and 0 <= clicked_row <= 7:
-                selected_piece = board_state[clicked_row][clicked_col]
-
-                if selected_piece:
-                    print(f"The valid moves are: {selected_piece.get_valid_moves(board_state)}")
-
                 if selected_piece is not None:
-                    print('clicked piece')
+                    valid_moves = selected_piece.get_valid_moves(board_state)
+                    if (clicked_row, clicked_col) in valid_moves:
+                        # Clear old piece position
+                        board_state[selected_piece.row][selected_piece.col] = None
+                        # Update the new position
+                        selected_piece.move(clicked_row, clicked_col)
+                        # Update on the rendered board
+                        board_state[clicked_row][clicked_col] = selected_piece
+                        # Deselect piece
+                        selected_piece = None
+
+                    else:
+                        selected_piece = board_state[clicked_row][clicked_col]
                 else:
-                    print("didn't click piece")
+                    selected_piece = board_state[clicked_row][clicked_col]
 
     screen.fill(bgColor)
 
