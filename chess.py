@@ -319,6 +319,10 @@ def setupBoard():
 
 setupBoard()
 
+clock = pg.time.Clock()
+invalid_timer = 0
+shaking_piece = None
+
 running = True
 while running:
     for event in pg.event.get():
@@ -347,9 +351,17 @@ while running:
                         board_state[clicked_row][clicked_col] = selected_piece
                         # Deselect piece
                         selected_piece = None
+                        invalid_timer = 0
 
                     else:
-                        selected_piece = board_state[clicked_row][clicked_col]
+                        target_piece = board_state[clicked_row][clicked_col]
+
+                        if target_piece is not None and target_piece.color == selected_piece.color:
+                            selected_piece = target_piece
+                            invalid_timer = 0
+                        else:
+                            shaking_piece = selected_piece
+                            invalid_timer = 40
                 else:
                     selected_piece = board_state[clicked_row][clicked_col]
 
@@ -391,12 +403,29 @@ while running:
                 pg.draw.circle(screen, (100, 200, 100), (center_x, center_y), SQSIZE//6)
             else:
                 pg.draw.rect(screen, (247, 69, 84), (x_pos, y_pos, SQSIZE, SQSIZE), 5)
+
+    if invalid_timer > 0 and shaking_piece is not None:
+        r = shaking_piece.row
+        c = shaking_piece.col
+        pg.draw.rect(screen, (255, 50, 50), (c*SQSIZE + x_offset, r*SQSIZE, SQSIZE, SQSIZE))
+
     for row in range(8):
         for col in range(8):
             piece = board_state[row][col]
             if piece is not None:
-                piece.draw(screen, SQSIZE, x_offset)
+                current_x_offset = x_offset
+                
+                if invalid_timer > 0 and piece == shaking_piece:
+                    shake_amount = int(np.sin(invalid_timer) * 5)
+                    current_x_offset += shake_amount
+
+                piece.draw(screen, SQSIZE, current_x_offset)
+
+    if invalid_timer > 0:
+        invalid_timer -= 1
 
     pg.display.flip()
+
+    clock.tick(120)
 
 pg.quit()
