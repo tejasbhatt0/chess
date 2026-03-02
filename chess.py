@@ -148,11 +148,61 @@ class Bishop(Piece):
 
         self.image = ICONS[f"{self.color}_bishop"]
 
+    def get_valid_moves(self, board_state):
+        moves = []
+
+        directions = [(1, 1), (1, -1), (-1, 1), (-1, -1)]
+
+        for d in directions:
+            r = self.row + d[0]
+            c = self.col + d[1]
+
+            while 0 <= r <=7 and 0 <= c <=7:
+                target_piece = board_state[r][c]
+                
+                if target_piece is None:
+                    moves.append((r, c))
+                elif target_piece.color != self.color:
+                    moves.append((r, c))
+                    break
+                else:
+                    break
+                
+                r += d[0]
+                c += d[1]
+        
+        return moves
+
 class Rook(Piece):
     def __init__(self, color, row, col):
         super().__init__(color, row, col)
 
         self.image = ICONS[f"{self.color}_rook"]
+
+    def get_valid_moves(self, board_state):
+        moves = []
+
+        directions = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+
+        for d in directions:
+            r = self.row + d[0]
+            c = self.col + d[1]
+
+            while 0 <= r <=7 and 0 <= c <=7:
+                target_piece = board_state[r][c]
+                
+                if target_piece is None:
+                    moves.append((r, c))
+                elif target_piece.color != self.color:
+                    moves.append((r, c))
+                    break
+                else:
+                    break
+
+                r += d[0]
+                c += d[1]
+
+        return moves
 
 class Queen(Piece):
     def __init__(self, color, row, col):
@@ -160,11 +210,53 @@ class Queen(Piece):
 
         self.image = ICONS[f"{self.color}_queen"]
 
+    def get_valid_moves(self, board_state):
+        moves = []
+
+        # All the direction the Queen can move
+        directions = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)]
+
+        for d in directions:
+            r = self.row + d[0]
+            c = self.col + d[1]
+
+            while 0 <= r <=7 and 0 <= c <=7:
+                target_piece = board_state[r][c]
+                
+                if target_piece is None:
+                    moves.append((r, c))
+                elif target_piece.color != self.color:
+                    moves.append((r, c))
+                    break
+                else:
+                    break
+
+                r += d[0]
+                c += d[1]
+
+        return moves
+
 class King(Piece):
     def __init__(self, color, row, col):
         super().__init__(color, row, col)
 
         self.image = ICONS[f"{self.color}_king"]
+
+    def get_valid_moves(self, board_state):
+        moves = []
+
+        directions = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)]
+
+        for d in directions:
+            r = self.row + d[0]
+            c = self.col + d[1]
+
+            if 0 <= r <= 7 and 0 <= c <= 7:
+                target_piece = board_state[r][c]
+                if target_piece is None or target_piece.color != self.color:
+                    moves.append((r, c))
+                                        
+        return moves
 
 
 loadImages(SQSIZE)
