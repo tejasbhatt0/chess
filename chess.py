@@ -255,7 +255,7 @@ class King(Piece):
                 target_piece = board_state[r][c]
                 if target_piece is None or target_piece.color != self.color:
                     moves.append((r, c))
-                                        
+
         return moves
 
 
@@ -266,6 +266,7 @@ board_state = [[None for _ in range(8)] for _ in range(8)]
 
 # Selected piece memory
 selected_piece = None
+valid_moves = []
 
 def setupBoard():
     for i in range(8):
@@ -368,12 +369,30 @@ while running:
 
             pg.draw.rect(screen, color, (x_pos, y_pos, SQSIZE, SQSIZE))
 
-            if selected_piece is not None:
-                x_high = selected_piece.col * SQSIZE + x_offset
-                y_high = selected_piece.row * SQSIZE
+    if selected_piece is not None:
+        x_high = selected_piece.col * SQSIZE + x_offset
+        y_high = selected_piece.row * SQSIZE
 
-                pg.draw.rect(screen, (100, 255, 255), (x_high, y_high, SQSIZE, SQSIZE), 4)
+        pg.draw.rect(screen, (100, 255, 255), (x_high, y_high, SQSIZE, SQSIZE), 4)
+        valid_moves = selected_piece.get_valid_moves(board_state)
 
+        for move in valid_moves:
+            r = move[0]
+            c = move[1]
+
+            x_pos = c*SQSIZE + x_offset
+            y_pos = r*SQSIZE
+            center_x = x_pos + (SQSIZE//2)
+            center_y = y_pos + (SQSIZE//2)
+
+            target_piece = board_state[r][c];
+            
+            if target_piece is None:
+                pg.draw.circle(screen, (100, 200, 100), (center_x, center_y), SQSIZE//6)
+            else:
+                pg.draw.rect(screen, (247, 69, 84), (x_pos, y_pos, SQSIZE, SQSIZE), 5)
+    for row in range(8):
+        for col in range(8):
             piece = board_state[row][col]
             if piece is not None:
                 piece.draw(screen, SQSIZE, x_offset)
