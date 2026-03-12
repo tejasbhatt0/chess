@@ -13,6 +13,11 @@ pg.init()
 WIDTH = 1000
 HEIGHT = 600
 
+current_turn = 'white'
+is_flipped = False
+promoting_pawn = None
+en_passant_target = None
+
 # Create screen object, decide background colour, and colour of light and dark squares
 screen = pg.display.set_mode((WIDTH, HEIGHT))
 bgColor = (250, 224, 255)
@@ -110,6 +115,14 @@ class Pawn(Piece):
                 target_piece = board_state[target_row][target_col]
                 if target_piece is not None and target_piece.color != self.color:
                     moves.append((target_row, target_col))
+
+        global en_passant_target
+        if en_passant_target is not None:
+            ep_r = en_passant_target[0]
+            ep_c = en_passant_target[1]
+
+            if self.row + self.direction == ep_r and abs(self.col - ep_c) == 1:
+                moves.append((ep_r, ep_c))
 
         return moves
 
@@ -333,24 +346,87 @@ while running:
             # Gets co-ords where the mouse was cliked and stores it in variables
             x_mouse, y_mouse = pg.mouse.get_pos()
 
+            if promoting_pawn is not None:
+                p_row = promoting_pawn.row
+                p_col = promoting_pawn.col
+
+                direction = 1 if p_row == 0 else -1
+                options = ['queen', 'knight', 'rook', 'bishop']
+
+                for i, option in enumerate(options):
+                    menu_row = p_row + (i * direction)
+                    dr = 7 - menu_row if is_flipped else menu_row
+                    dc = 7 - p_col if is_flipped else p_col
+
+                    rect = pg.Rect(dc * SQSIZE + x_offset, dr * SQSIZE, SQSIZE, SQSIZE)
+
+                    if rect.collidepoint(x_mouse, y_mouse):
+                        color = promoting_pawn.color
+                        if option == 'queen':
+                            board_state[p_row][p_col] = Queen(color, p_row, p_col)
+                        elif option == 'knight':
+                            board_state[p_row][p_col] = Knight(color, p_row, p_col)
+                        elif option == 'bishop':
+                            board_state[p_row][p_col] = Bishop(color, p_row, p_col)
+                        elif option == 'rook':
+                            board_state[p_row][p_col] = Rook(color, p_row, p_col)
+
+                        promoting_pawn = None
+                        current_turn = 'black' if current_turn == 'white' else 'white'
+                        break
+                continue
+                    
             # Reverses math to find clicked col
             clicked_col = int((x_mouse - x_offset) // SQSIZE)
 
             # Reverses math to find clicked row
             clicked_row = int(y_mouse // SQSIZE)
 
+            if is_flipped:
+                clicked_col = 7- clicked_col
+                clicked_row = 7 - clicked_row
+            
             if 0 <= clicked_col <= 7 and 0 <= clicked_row <= 7:
                 if selected_piece is not None:
                     valid_moves = selected_piece.get_valid_moves(board_state)
                     if (clicked_row, clicked_col) in valid_moves:
+
+                        # Check for En Passant capture before moving
+                        is_en_passant = False
+                        if isinstance(selected_piece, Pawn) and (clicked_row, clicked_col) == en_passant_target:
+                            is_en_passant = True
+
+                        # Check if this is a double jump to set next target
+                        new_ep_target = None
+
+                        if isinstance(selected_piece, Pawn) and abs(selected_piece.row - clicked_row) == 2:
+                            new_ep_target = (selected_piece.row + selected_piece.direction, selected_piece.col)
+                        
                         # Clear old piece position
                         board_state[selected_piece.row][selected_piece.col] = None
                         # Update the new position
                         selected_piece.move(clicked_row, clicked_col)
                         # Update on the rendered board
                         board_state[clicked_row][clicked_col] = selected_piece
-                        # Deselect piece
-                        selected_piece = None
+                        
+
+                        if is_en_passant:
+                            board_state[clicked_row - selected_piece.direction][clicked_col] = None
+
+                        en_passant_target = new_ep_target
+
+                        if isinstance(selected_piece, Pawn) and (clicked_row == 0 or clicked_row == 7):
+                            promoting_pawn = selected_piece
+                            selected_piece = None
+                            # We will not swap turn yet because the game is frozen
+                        else:
+                            selected_piece = None
+
+                            if current_turn == 'white':
+                                current_turn = 'black'
+                            else:
+                                current_turn = 'white'
+                        
                         invalid_timer = 0
 
                     else:
@@ -363,10 +439,27 @@ while running:
                             shaking_piece = selected_piece
                             invalid_timer = 40
                 else:
-                    selected_piece = board_state[clicked_row][clicked_col]
+                    clicked_piece = board_state[clicked_row][clicked_col]
 
-    screen.fill(bgColor)
+                    if clicked_piece is not None:
+                        if clicked_piece.color == current_turn:
+                            selected_piece = clicked_piece
+                            invalid_timer = 0
+                        else:
+                            shaking_piece = clicked_piece
+                            invalid_timer = 40
 
+        elif event.type == pg.KEYDOWN:
+            if event.key == pg.K_f:
+                is_flipped = not is_flipped
+
+
+    if current_turn == 'white':
+        screen.fill((250, 240, 255)) # Brighter for White
+    else:
+        screen.fill((220, 200, 225)) # Darker for Black
+    
+    
     for row in range(8):
         for col in range(8):
             if ((row + col) % 2 == 0):
@@ -379,21 +472,28 @@ while running:
             x_pos = col * SQSIZE + x_offset
             y_pos = row * SQSIZE
 
-            pg.draw.rect(screen, color, (x_pos, y_pos, SQSIZE, SQSIZE))
+            display_row = 7 - row if is_flipped else row
+            display_col = 7 - col if is_flipped else col
+
+            pg.draw.rect(screen, color, (display_row * SQSIZE + x_offset, display_col * SQSIZE, SQSIZE, SQSIZE))
 
     if selected_piece is not None:
-        x_high = selected_piece.col * SQSIZE + x_offset
-        y_high = selected_piece.row * SQSIZE
+        s_col = 7 - selected_piece.col if is_flipped else selected_piece.col
+        s_row = 7 - selected_piece.row if is_flipped else selected_piece.row
 
-        pg.draw.rect(screen, (100, 255, 255), (x_high, y_high, SQSIZE, SQSIZE), 4)
+        pg.draw.rect(screen, (100, 255, 255), (s_col * SQSIZE + x_offset, s_row * SQSIZE, SQSIZE, SQSIZE), 4)
         valid_moves = selected_piece.get_valid_moves(board_state)
 
         for move in valid_moves:
             r = move[0]
             c = move[1]
 
-            x_pos = c*SQSIZE + x_offset
-            y_pos = r*SQSIZE
+            dr = 7 - r if is_flipped else r
+            dc = 7 - c if is_flipped else c
+
+            x_pos = dc*SQSIZE + x_offset
+            y_pos = dr*SQSIZE
+
             center_x = x_pos + (SQSIZE//2)
             center_y = y_pos + (SQSIZE//2)
 
@@ -405,8 +505,8 @@ while running:
                 pg.draw.rect(screen, (247, 69, 84), (x_pos, y_pos, SQSIZE, SQSIZE), 5)
 
     if invalid_timer > 0 and shaking_piece is not None:
-        r = shaking_piece.row
-        c = shaking_piece.col
+        r = 7 - shaking_piece.row if is_flipped else shaking_piece.row
+        c = 7 - shaking_piece.col if is_flipped else shaking_piece.col
         pg.draw.rect(screen, (255, 50, 50), (c*SQSIZE + x_offset, r*SQSIZE, SQSIZE, SQSIZE))
 
     for row in range(8):
@@ -414,16 +514,50 @@ while running:
             piece = board_state[row][col]
             if piece is not None:
                 current_x_offset = x_offset
+                draw_row = 7 - row if is_flipped else row
+                draw_col = 7 - col if is_flipped else col
+                curr_x = draw_col * SQSIZE + x_offset
                 
                 if invalid_timer > 0 and piece == shaking_piece:
                     shake_amount = int(np.sin(invalid_timer) * 5)
-                    current_x_offset += shake_amount
+                    curr_x += shake_amount
 
-                piece.draw(screen, SQSIZE, current_x_offset)
+                y_pos = draw_row * SQSIZE
+                img = piece.image
+
+                screen.blit(img, (curr_x + (SQSIZE - img.get_width()) // 2, y_pos + (SQSIZE - img.get_height()) // 2))
 
     if invalid_timer > 0:
         invalid_timer -= 1
 
+    if promoting_pawn is not None:
+        # Dims the background
+        dim_surface = pg.Surface((WIDTH, HEIGHT))
+        dim_surface.set_alpha(150)
+        dim_surface.fill((0, 0, 0))
+        screen.blit(dim_surface, (0, 0))
+
+        # Draws the 4 options
+        p_row = promoting_pawn.row
+        p_col = promoting_pawn.col
+        direction = 1 if p_row == 0 else -1
+        options = ['queen', 'knight', 'rook', 'bishop']
+
+        for i, option in enumerate(options):
+            menu_row = p_row + (i * direction)
+            dr = 7 - menu_row if is_flipped else menu_row
+            dc = 7 - p_col if is_flipped else p_col
+
+            x_pos = dc * SQSIZE + x_offset
+            y_pos = dr * SQSIZE
+
+            # Draw a sq with black border
+            pg.draw.rect(screen, (240, 240, 240), (x_pos, y_pos, SQSIZE, SQSIZE))
+            pg.draw.rect(screen, (50, 50, 50), (x_pos, y_pos, SQSIZE, SQSIZE), 3)
+
+            # Gets the correct icon and centers it
+            img = ICONS[f"{promoting_pawn.color}_{option}"]
+            screen.blit(img, (x_pos + (SQSIZE - img.get_width()) // 2, y_pos + (SQSIZE - img.get_height()) // 2))
     pg.display.flip()
 
     clock.tick(120)
