@@ -269,6 +269,22 @@ class King(Piece):
                 if target_piece is None or target_piece.color != self.color:
                     moves.append((r, c))
 
+        # Castling logic
+        if self.hasMoved is False:
+            # Kingside Castling (Short Castle)
+            right_piece = board_state[self.row][7]
+            if isinstance(right_piece, Rook) and right_piece.hasMoved is False:
+                # Check if squares between them are empty
+                if board_state[self.row][5] is None and board_state[self.row][6] is None:
+                    moves.append((self.row, 6))
+
+            # Queenside Castling (Long Castling)
+            left_piece = board_state[self.row][0]
+            if isinstance(left_piece, Rook) and left_piece.hasMoved is False:
+                # Check if squares between them are empty
+                if board_state[self.row][1] is None and board_state[self.row][2] is None:
+                    moves.append((self.row, 2))
+
         return moves
 
 
@@ -332,6 +348,79 @@ def setupBoard():
 
 setupBoard()
 
+def is_in_check(board, color):
+    king_row, king_col = -1, -1
+    
+    # Finds our King
+    for r in range(8):
+        for c in range(8):
+            piece = board[r][c]
+
+            if isinstance(piece, King) and piece.color == color:
+                king_row, king_col = r, c
+                break
+
+        if king_row != -1:
+            break
+    
+    # Scans the board for enemy pieces
+    for r in range(8):
+        for c in range(8):
+            piece = board[r][c]
+
+            if piece is not None and piece.color != color:
+                enemy_moves = piece.get_valid_moves(board)
+
+                if (king_row, king_col) in enemy_moves:
+                    return True
+                
+    return False
+                
+def get_safe_moves(piece, board):
+    pseudo_moves = piece.get_valid_moves(board)
+    safe_moves = []
+
+    currently_in_check = is_in_check(board, piece.color)
+
+    for move in pseudo_moves:
+        r, c = move
+
+        if isinstance(piece, King) and abs(c - piece.col) == 2 and currently_in_check:
+            continue
+
+        # Save the current state of the piece
+        target_piece = board[r][c]
+        original_row = piece.row
+        original_col = piece.col
+
+        # Pretends to make the move
+        board[original_row][original_col] = None
+        board[r][c] = piece
+        piece.row = r
+        piece.col = c
+
+        # Make a en passant check and move it if such a condition arises, because en passant is the only move where a piece can be taken indirectly
+        captured_ep_pawn = None
+        global en_passant_target
+        if isinstance(piece, Pawn) and (r, c) == en_passant_target:
+            captured_ep_pawn = board[original_row][c]
+            board[original_row][c] = None
+
+        # Now it checks if any piece is a threat to the Kingc, otherwise puts them in safe moves
+        if not is_in_check(board, piece.color):
+            safe_moves.append(move)
+
+        # Undoes the move we pretended to make
+        board[original_row][original_col] = piece
+        board[r][c] = target_piece
+        piece.row = original_row
+        piece.col = original_col
+
+        if captured_ep_pawn is not None:
+            board[original_row][c] = captured_ep_pawn
+
+    return safe_moves
+
 clock = pg.time.Clock()
 invalid_timer = 0
 shaking_piece = None
@@ -383,12 +472,12 @@ while running:
             clicked_row = int(y_mouse // SQSIZE)
 
             if is_flipped:
-                clicked_col = 7- clicked_col
+                clicked_col = 7 - clicked_col
                 clicked_row = 7 - clicked_row
             
             if 0 <= clicked_col <= 7 and 0 <= clicked_row <= 7:
                 if selected_piece is not None:
-                    valid_moves = selected_piece.get_valid_moves(board_state)
+                    valid_moves = get_safe_moves(selected_piece, board_state)
                     if (clicked_row, clicked_col) in valid_moves:
 
                         # Check for En Passant capture before moving
@@ -401,6 +490,10 @@ while running:
 
                         if isinstance(selected_piece, Pawn) and abs(selected_piece.row - clicked_row) == 2:
                             new_ep_target = (selected_piece.row + selected_piece.direction, selected_piece.col)
+
+                        is_castle = False
+                        if isinstance(selected_piece, King) and abs(selected_piece.col - clicked_col) == 2:
+                            is_castle = True
                         
                         # Clear old piece position
                         board_state[selected_piece.row][selected_piece.col] = None
@@ -408,6 +501,19 @@ while running:
                         selected_piece.move(clicked_row, clicked_col)
                         # Update on the rendered board
                         board_state[clicked_row][clicked_col] = selected_piece
+
+                        if is_castle:
+                            if clicked_col == 6: # Kingside (Right)
+                                rook = board_state[clicked_row][7]
+                                board_state[clicked_row][7] = None
+                                rook.move(clicked_row, 5)
+                                board_state[clicked_row][5] = rook
+
+                            elif clicked_col == 2:
+                                rook = board_state[clicked_row][0]
+                                board_state[clicked_row][0] = None
+                                rook.move(clicked_row, 3)
+                                board_state[clicked_row][3] = rook
                         
 
                         if is_en_passant:
@@ -482,7 +588,7 @@ while running:
         s_row = 7 - selected_piece.row if is_flipped else selected_piece.row
 
         pg.draw.rect(screen, (100, 255, 255), (s_col * SQSIZE + x_offset, s_row * SQSIZE, SQSIZE, SQSIZE), 4)
-        valid_moves = selected_piece.get_valid_moves(board_state)
+        valid_moves = get_safe_moves(selected_piece, board_state)
 
         for move in valid_moves:
             r = move[0]
