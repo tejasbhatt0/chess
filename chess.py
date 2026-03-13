@@ -17,6 +17,8 @@ current_turn = 'white'
 is_flipped = False
 promoting_pawn = None
 en_passant_target = None
+game_over = False
+winner_text = ""
 
 # Create screen object, decide background colour, and colour of light and dark squares
 screen = pg.display.set_mode((WIDTH, HEIGHT))
@@ -425,6 +427,23 @@ clock = pg.time.Clock()
 invalid_timer = 0
 shaking_piece = None
 
+def check_game_over(board, color):
+    # Loop through every piece of a specified color
+    for r in range(8):
+        for c in range(8):
+            piece = board[r][c]
+
+            if piece is not None and piece.color == color:
+                # If even one piece has a safe move then the game is not over
+                safe_moves = get_safe_moves(piece, board)
+                if len(safe_moves) > 0:
+                    return None
+                
+    if is_in_check(board_state, color):
+        return "Checkmate"
+    else:
+        return "Stalemate"
+
 running = True
 while running:
     for event in pg.event.get():
@@ -432,6 +451,8 @@ while running:
             running = False
 
         elif event.type == pg.MOUSEBUTTONDOWN:
+            if game_over:
+                continue
             # Gets co-ords where the mouse was cliked and stores it in variables
             x_mouse, y_mouse = pg.mouse.get_pos()
 
@@ -532,6 +553,15 @@ while running:
                                 current_turn = 'black'
                             else:
                                 current_turn = 'white'
+
+                            status = check_game_over(board_state, current_turn)
+                            if status == 'Checkmate':
+                                game_over = True
+                                winner = 'White' if current_turn == 'black' else 'Black'
+                                winner_text = f'Checkmate! {winner} wins!'
+                            elif status == 'Stalemate':
+                                game_over = True
+                                winner_text = "Stalemate! It's a Draw"
                         
                         invalid_timer = 0
 
@@ -664,6 +694,21 @@ while running:
             # Gets the correct icon and centers it
             img = ICONS[f"{promoting_pawn.color}_{option}"]
             screen.blit(img, (x_pos + (SQSIZE - img.get_width()) // 2, y_pos + (SQSIZE - img.get_height()) // 2))
+
+
+    if game_over:
+        # Dim the board
+        dim_surface = pg.Surface((WIDTH, HEIGHT))
+        dim_surface.set_alpha(200)
+        dim_surface.fill((0, 0, 0))
+        screen.blit(dim_surface, (0, 0))
+
+        # Draw text
+        font = pg.font.SysFont(None, 64)
+        text_surface = font.render(winner_text, True, (255, 255, 255))
+        text_rect = text_surface.get_rect(center=(WIDTH//2, HEIGHT//2))
+        screen.blit(text_surface, text_rect)
+
     pg.display.flip()
 
     clock.tick(120)
