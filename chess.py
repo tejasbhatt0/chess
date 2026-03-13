@@ -483,6 +483,8 @@ while running:
 
                         promoting_pawn = None
                         current_turn = 'black' if current_turn == 'white' else 'white'
+
+                        is_flipped = True if current_turn == 'black' else False
                         break
                 continue
                     
@@ -554,6 +556,8 @@ while running:
                             else:
                                 current_turn = 'white'
 
+                            is_flipped = True if current_turn == 'black' else False
+
                             status = check_game_over(board_state, current_turn)
                             if status == 'Checkmate':
                                 game_over = True
@@ -588,7 +592,6 @@ while running:
         elif event.type == pg.KEYDOWN:
             if event.key == pg.K_f:
                 is_flipped = not is_flipped
-
 
     if current_turn == 'white':
         screen.fill((250, 240, 255)) # Brighter for White
