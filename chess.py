@@ -284,7 +284,7 @@ class King(Piece):
             left_piece = board_state[self.row][0]
             if isinstance(left_piece, Rook) and left_piece.hasMoved is False:
                 # Check if squares between them are empty
-                if board_state[self.row][1] is None and board_state[self.row][2] is None:
+                if board_state[self.row][1] is None and board_state[self.row][2] is None and board_state[self.row][3] is None:
                     moves.append((self.row, 2))
 
         return moves
